@@ -15,6 +15,7 @@ export type Stats = {
   loc: number;
   files: number;
   diskUsage: number;
+  count: number;
   byLangs: {
     [lang: string]: {
       loc: number;

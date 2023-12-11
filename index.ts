@@ -1,9 +1,7 @@
-require("dotenv").config();
-
-import files from "./files";
-import { clocWithAttempts } from "./cloc";
-import { clearCache, prefetch, queryReposWithRetry } from "./query";
-import { Batch, BatchItem, Mem, Stats } from "./types";
+import files from "./src/files";
+import { clocWithAttempts } from "./src/cloc";
+import { clearCache, prefetch, queryReposWithRetry } from "./src/query";
+import { Batch, BatchItem, Mem, Stats } from "./src/types";
 
 const { LAST_DATE, SLEEP_TIME = "1000", MAX_ATTEMPT = "20" } = process.env;
 
@@ -23,6 +21,7 @@ let state: { batch: Batch; mem: Mem; stats: Stats } = {
     loc: 0,
     files: 0,
     diskUsage: 0,
+    count: 0,
     byLangs: {},
   },
 };
@@ -71,6 +70,7 @@ const setFreshState = () => {
     loc: 0,
     files: 0,
     diskUsage: 0,
+    count: 0,
     byLangs: {},
   };
 
@@ -113,7 +113,7 @@ const parseRepo = async (repo: BatchItem) => {
   if (Date.parse(createdAt) < lastDate) {
     console.log("Arrived to final date!");
     console.log("Script done now, gratz!");
-    return;
+    throw "end";
   }
 
   const { code, nFiles, langs } = await clocWithAttempts(
@@ -146,6 +146,7 @@ const parseRepo = async (repo: BatchItem) => {
 
   state.stats.loc += code;
   state.stats.files += nFiles;
+  state.stats.count += 1;
 };
 
 const first = <T>(arr: T[], n: number): T[] => {
@@ -199,8 +200,8 @@ const main = async () => {
       external: current.external - external,
       heapTotal: current.heapTotal - heapTotal,
       heapUsed: current.heapUsed - heapUsed,
-      rss: current.rss - rss
-    }
+      rss: current.rss - rss,
+    };
 
     console.table(memTable);
 
@@ -231,8 +232,10 @@ const main = async () => {
   }
 };
 
-main().finally(() => {
-  console.log("Finally");
-  console.log(JSON.stringify(state?.stats, null, 2));
-  files.disconnect();
-});
+main()
+  .catch((err) => console.log(err))
+  .finally(() => {
+    console.log("Finally");
+    console.log(JSON.stringify(state?.stats, null, 2));
+    files.disconnect();
+  });

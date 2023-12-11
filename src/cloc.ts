@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { readableStreamToText } from "bun";
 
 type CLocOutput = {
   code: number;
@@ -25,14 +25,23 @@ const delay = (ms: number) =>
 const cloc = (sshUrl: string): Promise<CLocOutput> => {
   return new Promise((resolve, reject) => {
     const time = Date.now();
+    const name = `${Bun.hash(sshUrl)}${time}`;
+    let output: CLocOutput;
 
-    exec(`./cloc.sh ${sshUrl} ${time}`, (err, stdout) => {
-      if (err) {
-        return reject(err);
-      }
+    const proc = Bun.spawn(["./cloc.sh", sshUrl, name], {
+      onExit(subprocess, exitCode, signalCode, err) {
+        if (err) {
+          return reject(err);
+        }
 
+        resolve(output);
+      },
+    });
+
+    readableStreamToText(proc.stdout).then((stdout) => {
       if (!stdout.length) {
-        return resolve({ code: 0, nFiles: 0, langs: [] });
+        output = { code: 0, nFiles: 0, langs: [] };
+        return;
       }
 
       let data: {
@@ -43,7 +52,8 @@ const cloc = (sshUrl: string): Promise<CLocOutput> => {
         data = JSON.parse(stdout);
       } catch {
         console.log("Json parse error", sshUrl);
-        return resolve({ code: 0, nFiles: 0, langs: [] });
+        output = { code: 0, nFiles: 0, langs: [] };
+        return;
       }
 
       const { code, nFiles } = data["SUM"];
@@ -56,7 +66,7 @@ const cloc = (sshUrl: string): Promise<CLocOutput> => {
           files: data[key].nFiles,
         }));
 
-      return resolve({ code, nFiles, langs });
+      output = { code, nFiles, langs };
     });
   });
 };

@@ -1,5 +1,3 @@
-import fetch from "node-fetch";
-
 const { KEY, ORG } = process.env;
 const endpoint = `https://api.github.com/orgs/${ORG}/repos`;
 
@@ -62,7 +60,7 @@ const fetchRepos = (page: number) => {
     .then((res) => <Promise<Repos>>res.json());
 };
 
-const isRepos = (val: null | Promise<Repos> | Repos): val is Repos => {
+const isReposType = (val: null | Promise<Repos> | Repos): val is Repos => {
   return !!((val as Repos).length && (val as Repos)[0].name);
 };
 
@@ -80,7 +78,7 @@ const queryRepos = (page: number = 1): Promise<Repos> => {
     request = fetchRepos(page);
   } else if (isPromise(cached)) {
     request = cached;
-  } else if (isRepos(cached)) {
+  } else if (isReposType(cached)) {
     console.log('cache used');
     return Promise.resolve(cached);
   } else {
